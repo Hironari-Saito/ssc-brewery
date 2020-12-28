@@ -1,5 +1,6 @@
 package guru.sfg.brewery.web.controllers;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.LdapShaPasswordEncoder;
@@ -10,23 +11,29 @@ import org.springframework.util.DigestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class PasswordEncodingTests {
 
     static final String PASSWORD = "password";
 
     @Test
     void testBcrypt15() {
-        PasswordEncoder bcrypt = new BCryptPasswordEncoder(10);
+        PasswordEncoder bcrypt = new BCryptPasswordEncoder(15);
+
+        System.out.println(bcrypt.encode(PASSWORD));
+        System.out.println(bcrypt.encode(PASSWORD));
         System.out.println(bcrypt.encode("tiger"));
+
     }
 
     @Test
     void testBcrypt() {
         PasswordEncoder bcrypt = new BCryptPasswordEncoder();
-        System.out.println(bcrypt.encode(PASSWORD));
-        System.out.println(bcrypt.encode(PASSWORD));
 
+        System.out.println(bcrypt.encode(PASSWORD));
+        System.out.println(bcrypt.encode(PASSWORD));
         System.out.println(bcrypt.encode("guru"));
+
     }
 
     @Test
@@ -43,14 +50,16 @@ public class PasswordEncodingTests {
         System.out.println(ldap.encode(PASSWORD));
         System.out.println(ldap.encode(PASSWORD));
         System.out.println(ldap.encode("tiger"));
+        String encodedPwd = ldap.encode(PASSWORD);
 
-        String eoncodedPwd = ldap.encode(PASSWORD);
-        assertTrue(ldap.matches(PASSWORD,eoncodedPwd));
+        assertTrue(ldap.matches(PASSWORD, encodedPwd ));
+
     }
 
     @Test
     void testNoOp() {
         PasswordEncoder noOp = NoOpPasswordEncoder.getInstance();
+
         System.out.println(noOp.encode(PASSWORD));
     }
 
@@ -61,6 +70,5 @@ public class PasswordEncodingTests {
 
         String salted = PASSWORD + "ThisIsMySALTVALUE";
         System.out.println(DigestUtils.md5DigestAsHex(salted.getBytes()));
-
     }
 }

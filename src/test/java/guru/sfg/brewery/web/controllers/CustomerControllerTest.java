@@ -17,125 +17,75 @@
 
 package guru.sfg.brewery.web.controllers;
 
-import guru.sfg.brewery.domain.Customer;
-import guru.sfg.brewery.repositories.CustomerRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
-class CustomerControllerTest {
+@SpringBootTest
+class CustomerControllerTest extends BaseIT{
 
-    @Mock
-    CustomerRepository customerRepository;
-
-    @InjectMocks
-    CustomerController controller;
-    List<Customer> customerList;
-    UUID uuid;
-    Customer customer;
-
-    MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        customerList = new ArrayList<Customer>();
-        customerList.add(Customer.builder().customerName("John Doe").build());
-        customerList.add(Customer.builder().customerName("John Doe").build());
-
-        final String id = "493410b3-dd0b-4b78-97bf-289f50f6e74f";
-        uuid = UUID.fromString(id);
-
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(controller)
-                .build();
+    @ParameterizedTest(name ="#{index} with [{arguments}]")
+    @MethodSource("guru.sfg.brewery.web.controllers.BeerControllerIT#getStreamAdminCustomer")
+    void testListCustomersAUTH(String user, String pwd) throws Exception {
+        mockMvc.perform(get("/customers")
+            .with(httpBasic(user,pwd)))
+            .andExpect(status().isOk());
     }
 
     @Test
-    void findCustomers() throws Exception{
-        mockMvc.perform(get("/customers/find"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("customers/findCustomers"))
-                .andExpect(model().attributeExists("customer"));
-        verifyZeroInteractions(customerRepository);
+    void testListCustomersNOTAUTH() throws Exception {
+        mockMvc.perform(get("/customers")
+                .with(httpBasic("user", "password")))
+                .andExpect(status().isForbidden());
     }
-//ToDO: Fix stubbing error
-    @Test
-    @Disabled
-    void processFindFormReturnMany() throws Exception{
-        when(customerRepository.findAllByCustomerNameLike("John Doe")).thenReturn(customerList);
 
+    @Test
+    void testListCustomersNOTLOGIN() throws Exception {
         mockMvc.perform(get("/customers"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("customers/customerList"))
-                .andExpect(model().attribute("selections", hasSize(2)));
+                .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    void showCustomer() throws Exception{
-        when(customerRepository.findById(uuid)).thenReturn(Optional.of(Customer.builder().id(uuid).build()));
-        mockMvc.perform(get("/customers/"+uuid))
-                .andExpect(status().isOk())
-                .andExpect(view().name("customers/customerDetails"))
-                .andExpect(model().attribute("customer", hasProperty("id", is(uuid))));
-    }
 
-    @Test
-    void initCreationForm() throws Exception{
-        mockMvc.perform(get("/customers/new"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("customers/createCustomer"))
-                .andExpect(model().attributeExists("customer"));
-        verifyZeroInteractions(customerRepository);
-    }
+    @DisplayName("Add Customers")
+    @Nested
+    class AddCustomers {
 
-    @Test
-    void processCreationForm() throws Exception{
-        when(customerRepository.save(ArgumentMatchers.any())).thenReturn(Customer.builder().id(uuid).build());
-        mockMvc.perform(post("/customers/new"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(view().name("redirect:/customers/"+ uuid))
-                .andExpect(model().attributeExists("customer"));
-        verify(customerRepository).save(ArgumentMatchers.any());
-    }
+        @Rollback
+        @Test
+        void processCreationForm() throws Exception {
+            mockMvc.perform(post("/customers/new")
+                    .param("customerName", "Foo Customer")
+                    .with(httpBasic("spring", "guru")))
+                    .andExpect(status().is3xxRedirection());
+        }
 
-    @Test
-    void initUpdateCustomerForm() throws Exception{
-        when(customerRepository.findById(uuid)).thenReturn(Optional.of(Customer.builder().id(uuid).build()));
-        mockMvc.perform(get("/customers/"+uuid+"/edit"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("customers/createOrUpdateCustomer"))
-                .andExpect(model().attributeExists("customer"));
-        verifyZeroInteractions(customerRepository);
-    }
+        @Rollback
+        @ParameterizedTest(name = "#{index} with [{arguments}]")
+        @MethodSource("guru.sfg.brewery.web.controllers.BeerControllerIT#getStreamNotAdmin")
+        void processCreationFormNOTAUTH(String user, String pwd) throws Exception {
+            mockMvc.perform(post("/customers/new")
+                    .param("customerName", "Foo Customer2")
+                    .with(httpBasic(user,pwd)))
+                    .andExpect(status().isForbidden());
 
-    @Test
-    void processUpdationForm() throws Exception{
-        when(customerRepository.save(ArgumentMatchers.any())).thenReturn(Customer.builder().id(uuid).build());
+        }
 
-        mockMvc.perform(post("/customers/"+uuid+"/edit"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(view().name("redirect:/customers/"+uuid))
-                .andExpect(model().attributeExists("customer"));
+        @Test
+        void processCreationFormNOAUTH() throws Exception {
+            mockMvc.perform(post("/customers/new")
+                    .param("customerName", "Foo Customer"))
+                    .andExpect(status().isUnauthorized());
+        }
 
-        verify(customerRepository).save(ArgumentMatchers.any());
+
     }
 }
