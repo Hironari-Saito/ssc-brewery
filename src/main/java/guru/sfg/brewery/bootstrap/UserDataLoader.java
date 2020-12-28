@@ -59,23 +59,28 @@ public class UserDataLoader implements CommandLineRunner {
 
         roleRepository.saveAll(Arrays.asList(adminRole, customerRole, userRole));
 
-        userRepository.save(User.builder()
+        User admin = userRepository.save(User.builder()
                 .username("spring")
                 .password(passwordEncoder.encode("guru"))
-                .role(adminRole)
                 .build());
 
-        userRepository.save(User.builder()
+        admin.setRoles(Set.of(adminRole));
+        userRepository.save(admin);
+
+        User user = userRepository.save(User.builder()
                 .username("user")
                 .password(passwordEncoder.encode("password"))
-                .role(userRole)
                 .build());
 
-        userRepository.save(User.builder()
+        user.setRoles(Set.of(userRole));
+        userRepository.save(user);
+
+        User customer = userRepository.save(User.builder()
                 .username("scott")
                 .password(passwordEncoder.encode("tiger"))
-                .role(customerRole)
                 .build());
+        customer.setRoles(Set.of(customerRole));
+        userRepository.save(customer);
 
         log.debug("Users Loaded: " + userRepository.count());
     }
